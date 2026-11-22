@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>json2tsp</title>
+  <style>
+    :root {
+      --color-bg: #f7f8fa;
+      --color-surface: #ffffff;
+      --color-border: #d1d5db;
+      --color-border-subtle: #e5e7eb;
+      --color-text: #111827;
+      --color-text-muted: #4b5563;
+      --color-primary: #2563eb;
+      --color-primary-hover: #1d4ed8;
+      --color-primary-tint: #eff6ff;
+      --color-error-text: #b91c1c;
+      --color-error-bg: #fef2f2;
+      --color-error-border: #fecaca;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .brand {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .field {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+
+    .text-input {
+      width: 128px;
+      height: 32px;
+      padding: 4px 8px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      transition: border-color 120ms ease;
+    }
+
+    .text-input:hover {
+      border-color: #9ca3af;
+    }
+
+    .text-input:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 1px;
+      border-color: var(--color-primary);
+    }
+
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      background: var(--color-surface);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 120ms ease, background-color 120ms ease;
+    }
+
+    .checkbox-label:hover {
+      border-color: #9ca3af;
+      background: var(--color-bg);
+    }
+
+    .checkbox-label:has(input:focus-visible) {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 1px;
+      border-color: var(--color-primary);
+    }
+
+    .checkbox-label input {
+      margin: 0;
+      accent-color: var(--color-primary);
+      cursor: pointer;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--color-bg);
+      border-color: #9ca3af;
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 1px;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--color-primary-hover);
+      border-color: var(--color-primary-hover);
+    }
+
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+      min-height: 0;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+      transition: border-color 120ms ease;
+    }
+
+    .pane.drag-over {
+      border-color: var(--color-primary);
+      background: var(--color-primary-tint);
+    }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--color-border-subtle);
+      background: var(--color-surface);
+    }
+
+    .pane-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .pane-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pane-body {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .editor {
+      flex: 1;
+      width: 100%;
+      min-height: 320px;
+      padding: 12px;
+      border: 0;
+      resize: none;
+      background: transparent;
+      color: var(--color-text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      tab-size: 2;
+    }
+
+    .editor:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: -2px;
+    }
+
+    .editor[readonly] {
+      background: #fafafa;
+    }
+
+    .state-banner {
+      padding: 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .state-error {
+      background: var(--color-error-bg);
+      color: var(--color-error-text);
+      border-bottom-color: var(--color-error-border);
+      font-family: var(--font-mono);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .state-loading {
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--color-text-muted);
+      font-size: 13px;
+      background: #fafafa;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        padding: 12px;
+        gap: 12px;
+      }
+
+      .editor {
+        min-height: 240px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1 class="brand">json2tsp</h1>
+      <div class="controls">
+        <label class="field" for="rootNameInput">
+          Root
+          <input id="rootNameInput" class="text-input" type="text" value="Root" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="checkbox-label" for="inlineToggle">
+          <input id="inlineToggle" type="checkbox">
+          Inline
+        </label>
+        <input id="fileInput" class="hidden" type="file" accept=".json,application/json,text/plain">
+        <button id="uploadBtn" class="btn" type="button">打开文件</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section id="inputPane" class="pane" aria-label="JSON 输入">
+        <div class="pane-header">
+          <h2 class="pane-title">JSON</h2>
+          <div class="pane-actions">
+            <button id="sampleBtn" class="btn" type="button">示例</button>
+            <button id="formatBtn" class="btn" type="button">格式化</button>
+            <button id="clearBtn" class="btn" type="button">清空</button>
+          </div>
+        </div>
+        <div class="pane-body">
+          <div id="loadingBanner" class="state-banner state-loading hidden" role="status">正在读取文件...</div>
+          <textarea
+            id="jsonInput"
+            class="editor"
+            placeholder="粘贴或拖入 JSON 文件..."
+            spellcheck="false"
+            aria-label="JSON 文本输入"
+          ></textarea>
+        </div>
+      </section>
+
+      <section class="pane" aria-label="TypeSpec 输出">
+        <div class="pane-header">
+          <h2 class="pane-title">TypeSpec</h2>
+          <div class="pane-actions">
+            <button id="copyBtn" class="btn btn-primary" type="button" disabled>复制</button>
+            <button id="downloadBtn" class="btn" type="button" disabled>下载 .tsp</button>
+          </div>
+        </div>
+        <div class="pane-body">
+          <div id="errorBanner" class="state-banner state-error hidden" role="alert"></div>
+          <div id="emptyState" class="empty-state">输入 JSON 后在此生成 TypeSpec</div>
+          <textarea
+            id="tspOutput"
+            class="editor hidden"
+            readonly
+            spellcheck="false"
+            aria-label="TypeSpec 生成结果"
+          ></textarea>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const INT64_MIN = -9223372036854775808n;
+      const INT64_MAX = 9223372036854775807n;
+
+      const TYPESPEC_KEYWORDS = new Set([
+        "alias", "const", "dec", "else", "enum", "extends", "extern",
+        "false", "fn", "if", "import", "init", "interface", "internal",
+        "is", "model", "namespace", "never", "null", "op", "projection",
+        "return", "scalar", "true", "typeof", "union", "unknown", "using",
+        "valueof", "void"
+      ]);
+
+      const SAMPLE_JSON = `{
+  "id": 1,
+  "birth_date": "2026-11-22",
+  "alarm_time": "18:32:22",
+  "created_at": "2026-11-22T18:32:22Z",
+  "updated_at": "2026-11-22T18:32:22+08:00",
+  "kebab-key": "value",
+  "items": [
+    { "name": "book", "price": 12.5 },
+    { "name": "pen", "price": 3, "note": "blue" }
+  ]
+}`;
+
+      // --- Ordered JSON Parser (preserves exact key order and raw number text) ---
+
+      function parseOrderedJSON(text) {
+        let pos = 0;
+        const len = text.length;
+
+        function computeLineCol(index) {
+          let line = 1;
+          let col = 1;
+          for (let i = 0; i < index; i += 1) {
+            if (text.charCodeAt(i) === 10) {
+              line += 1;
+              col = 1;
+            } else {
+              col += 1;
+            }
+          }
+          return { line, col };
+        }
+
+        function syntaxError(message, index = pos) {
+          const { line, col } = computeLineCol(index);
+          return new Error(`JSON 语法错误 (第 ${line} 行，第 ${col} 列): ${message}`);
+        }
+
+        function skipWhitespace() {
+          while (pos < len) {
+            const ch = text.charCodeAt(pos);
+            if (ch === 32 || ch === 9 || ch === 10 || ch === 13) {
+              pos += 1;
+            } else {
+              break;
+            }
+          }
+        }
+
+        function parseValue() {
+          skipWhitespace();
+          if (pos >= len) {
+            throw syntaxError("意外的输入结束");
+          }
+          const ch = text[pos];
+          if (ch === "{") return parseObject();
+          if (ch === "[") return parseArray();
+          if (ch === '"') return { kind: "string", value: parseString() };
+          if (ch === "t") return parseLiteral("true", { kind: "bool", value: true });
+          if (ch === "f") return parseLiteral("false", { kind: "bool", value: false });
+          if (ch === "n") return parseLiteral("null", { kind: "null" });
+          if (ch === "-" || (ch >= "0" && ch <= "9")) return parseNumber();
+          throw syntaxError(`意外的字符 "${ch}"`);
+        }
+
+        function parseLiteral(expected, result) {
+          if (text.slice(pos, pos + expected.length) !== expected) {
+            throw syntaxError(`期望 "${expected}"`);
+          }
+          pos += expected.length;
+          return result;
+        }
+
+        function parseString() {
+          const start = pos;
+          pos += 1; // opening quote
+          let result = "";
+          while (pos < len) {
+            const ch = text[pos];
+            const code = text.charCodeAt(pos);
+            if (ch === '"') {
+              pos += 1;
+              return result;
+            }
+            if (code < 0x20) {
+              throw syntaxError("字符串中包含未转义的控制字符");
+            }
+            if (ch === "\\") {
+              pos += 1;
+              if (pos >= len) {
+                throw syntaxError("转义序列不完整");
+              }
+              const esc = text[pos];
+              pos += 1;
+              switch (esc) {
+                case '"': result += '"'; break;
+                case "\\": result += "\\"; break;
+                case "/": result += "/"; break;
+                case "b": result += "\b"; break;
+                case "f": result += "\f"; break;
+                case "n": result += "\n"; break;
+                case "r": result += "\r"; break;
+                case "t": result += "\t"; break;
+                case "u": {
+                  const hex = text.slice(pos, pos + 4);
+                  if (!/^[0-9a-fA-F]{4}$/.test(hex)) {
+                    throw syntaxError("无效的 Unicode 转义序列");
+                  }
+                  result += String.fromCharCode(parseInt(hex, 16));
+                  pos += 4;
+                  break;
+                }
+                default:
+                  throw syntaxError(`无效的转义字符 "\\${esc}"`);
+              }
+            } else {
+              result += ch;
+              pos += 1;
+            }
+          }
+          throw syntaxError("字符串缺少结束引号", start);
+        }
+
+        function parseNumber() {
+          const start = pos;
+          if (text[pos] === "-") pos += 1;
+          if (pos >= len) throw syntaxError("数字不完整", start);
+
+          if (text[pos] === "0") {
+            pos += 1;
+          } else if (text[pos] >= "1" && text[pos] <= "9") {
+            while (pos < len && text[pos] >= "0" && text[pos] <= "9") pos += 1;
+          } else {
+            throw syntaxError("无效的数字格式", start);
+          }
+
+          if (pos < len && text[pos] === ".") {
+            pos += 1;
+            if (pos >= len || text[pos] < "0" || text[pos] > "9") {
+              throw syntaxError("小数点后缺少数字", pos);
+            }
+            while (pos < len && text[pos] >= "0" && text[pos] <= "9") pos += 1;
+          }
+
+          if (pos < len && (text[pos] === "e" || text[pos] === "E")) {
+            pos += 1;
+            if (pos < len && (text[pos] === "+" || text[pos] === "-")) pos += 1;
+            if (pos >= len || text[pos] < "0" || text[pos] > "9") {
+              throw syntaxError("指数部分缺少数字", pos);
+            }
+            while (pos < len && text[pos] >= "0" && text[pos] <= "9") pos += 1;
+          }
+
+          return { kind: "number", raw: text.slice(start, pos) };
+        }
+
+        function parseArray() {
+          pos += 1; // [
+          const items = [];
+          skipWhitespace();
+          if (pos < len && text[pos] === "]") {
+            pos += 1;
+            return { kind: "array", items };
+          }
+          while (true) {
+            items.push(parseValue());
+            skipWhitespace();
+            if (pos >= len) throw syntaxError("数组缺少结束括号 ']'");
+            if (text[pos] === "]") {
+              pos += 1;
+              return { kind: "array", items };
+            }
+            if (text[pos] !== ",") {
+              throw syntaxError(`数组中期望 ',' 或 ']'，实际为 "${text[pos]}"`);
+            }
+            pos += 1;
+          }
+        }
+
+        function parseObject() {
+          pos += 1; // {
+          const entries = [];
+          skipWhitespace();
+          if (pos < len && text[pos] === "}") {
+            pos += 1;
+            return { kind: "object", entries };
+          }
+          while (true) {
+            skipWhitespace();
+            if (pos >= len || text[pos] !== '"') {
+              throw syntaxError("对象键必须为双引号字符串");
+            }
+            const key = parseString();
+            skipWhitespace();
+            if (pos >= len || text[pos] !== ":") {
+              throw syntaxError(`键 "${key}" 后缺少 ':'`);
+            }
+            pos += 1;
+            const value = parseValue();
+
+            const existingIdx = entries.findIndex((entry) => entry.key === key);
+            if (existingIdx >= 0) {
+              entries[existingIdx].value = value;
+            } else {
+              entries.push({ key, value });
+            }
+
+            skipWhitespace();
+            if (pos >= len) throw syntaxError("对象缺少结束括号 '}'");
+            if (text[pos] === "}") {
+              pos += 1;
+              return { kind: "object", entries };
+            }
+            if (text[pos] !== ",") {
+              throw syntaxError(`对象中期望 ',' 或 '}'，实际为 "${text[pos]}"`);
+            }
+            pos += 1;
+          }
+        }
+
+        const root = parseValue();
+        skipWhitespace();
+        if (pos < len) {
+          throw syntaxError(`根值后存在多余内容 "${text[pos]}"`);
+        }
+        return root;
+      }
+
+      // --- Type Inference ---
+
+      function isValidCalendarDate(year, month, day) {
+        if (month < 1 || month > 12 || day < 1) return false;
+        const maxDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        return day <= maxDays;
+      }
+
+      function isValidClockTime(hour, minute, second) {
+        return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 && second >= 0 && second <= 59;
+      }
+
+      function classifyNumberKind(raw) {
+        if (/[.eE]/.test(raw)) {
+          return "float64";
+        }
+        try {
+          const n = BigInt(raw);
+          if (n >= INT64_MIN && n <= INT64_MAX) {
+            return "int64";
+          }
+        } catch {
+          return "float64";
+        }
+        return "float64";
+      }
+
+      function classifyStringKind(raw) {
+        const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+        if (dateMatch) {
+          if (isValidCalendarDate(Number(dateMatch[1]), Number(dateMatch[2]), Number(dateMatch[3]))) {
+            return "plainDate";
+          }
+        }
+
+        const timeMatch = /^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?$/.exec(raw);
+        if (timeMatch) {
+          if (isValidClockTime(Number(timeMatch[1]), Number(timeMatch[2]), Number(timeMatch[3]))) {
+            return "plainTime";
+          }
+        }
+
+        const dtMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-](\d{2}):(\d{2}))$/.exec(raw);
+        if (dtMatch) {
+          const validDate = isValidCalendarDate(Number(dtMatch[1]), Number(dtMatch[2]), Number(dtMatch[3]));
+          const validTime = isValidClockTime(Number(dtMatch[4]), Number(dtMatch[5]), Number(dtMatch[6]));
+          if (validDate && validTime) {
+            if (dtMatch[8] === "Z") {
+              return "utcDateTime";
+            }
+            const tzHour = Number(dtMatch[9]);
+            const tzMin = Number(dtMatch[10]);
+            if (tzHour <= 23 && tzMin <= 59) {
+              return "offsetDateTime";
+            }
+          }
+        }
+
+        return "string";
+      }
+
+      function inferTypeNode(val) {
+        switch (val.kind) {
+          case "null":
+            return { kind: "null" };
+          case "bool":
+            return { kind: "boolean" };
+          case "number":
+            return { kind: classifyNumberKind(val.raw) };
+          case "string":
+            return { kind: classifyStringKind(val.value) };
+          case "array":
+            if (val.items.length === 0) {
+              return { kind: "array", element: { kind: "unknown" } };
+            }
+            let merged = inferTypeNode(val.items[0]);
+            for (let i = 1; i < val.items.length; i += 1) {
+              merged = mergeTypeNodes(merged, inferTypeNode(val.items[i]));
+            }
+            return { kind: "array", element: merged };
+          case "object":
+            return {
+              kind: "object",
+              fields: val.entries.map((entry) => ({
+                name: entry.key,
+                type: inferTypeNode(entry.value),
+                optional: false
+              }))
+            };
+          default:
+            return { kind: "unknown" };
+        }
+      }
+
+      function isTemporalKind(kind) {
+        return kind === "plainDate" || kind === "plainTime" || kind === "utcDateTime" || kind === "offsetDateTime";
+      }
+
+      function tryMergeDirectly(left, right) {
+        if (left.kind === right.kind) {
+          if (
+            left.kind === "null" || left.kind === "boolean" || left.kind === "int64" ||
+            left.kind === "float64" || left.kind === "string" || isTemporalKind(left.kind)
+          ) {
+            return left;
+          }
+          if (left.kind === "array") {
+            return { kind: "array", element: mergeTypeNodes(left.element, right.element) };
+          }
+          if (left.kind === "object") {
+            return mergeObjectTypes(left, right);
+          }
+        }
+
+        if ((left.kind === "int64" && right.kind === "float64") || (left.kind === "float64" && right.kind === "int64")) {
+          return { kind: "float64" };
+        }
+        if ((left.kind === "utcDateTime" && right.kind === "offsetDateTime") || (left.kind === "offsetDateTime" && right.kind === "utcDateTime")) {
+          return { kind: "offsetDateTime" };
+        }
+        if ((left.kind === "string" && isTemporalKind(right.kind)) || (right.kind === "string" && isTemporalKind(left.kind))) {
+          return { kind: "string" };
+        }
+        return null;
+      }
+
+      function mergeObjectTypes(left, right) {
+        const merged = [];
+        for (const lf of left.fields) {
+          const rf = right.fields.find((field) => field.name === lf.name);
+          if (rf) {
+            merged.push({
+              name: lf.name,
+              type: mergeTypeNodes(lf.type, rf.type),
+              optional: lf.optional || rf.optional
+            });
+          } else {
+            merged.push({ name: lf.name, type: lf.type, optional: true });
+          }
+        }
+
+        for (const rf of right.fields) {
+          if (!left.fields.some((lf) => lf.name === rf.name)) {
+            merged.push({ name: rf.name, type: rf.type, optional: true });
+          }
+        }
+        return { kind: "object", fields: merged };
+      }
+
+      function appendMergedMember(members, incoming) {
+        if (incoming.kind === "union") {
+          let next = members;
+          for (const sub of incoming.members) {
+            next = appendMergedMember(next, sub);
+          }
+          return next;
+        }
+
+        for (let i = 0; i < members.length; i += 1) {
+          const combined = tryMergeDirectly(members[i], incoming);
+          if (combined) {
+            const reduced = members.slice(0, i).concat(members.slice(i + 1));
+            return appendMergedMember(reduced, combined);
+          }
+        }
+        return members.concat(incoming);
+      }
+
+      function mergeTypeNodes(left, right) {
+        if (left.kind === "unknown") return right;
+        if (right.kind === "unknown") return left;
+
+        const direct = tryMergeDirectly(left, right);
+        if (direct) return direct;
+
+        let members = [];
+        members = appendMergedMember(members, left);
+        members = appendMergedMember(members, right);
+
+        const nullIdx = members.findIndex((m) => m.kind === "null");
+        if (nullIdx >= 0 && nullIdx !== members.length - 1) {
+          const [nullNode] = members.splice(nullIdx, 1);
+          members.push(nullNode);
+        }
+
+        if (members.length === 1) {
+          return members[0];
+        }
+        return { kind: "union", members };
+      }
+
+      // --- TypeSpec Emitter ---
+
+      function formatTypeSpecProperty(name) {
+        if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) && !TYPESPEC_KEYWORDS.has(name)) {
+          return name;
+        }
+        const escaped = name.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
+        return "`" + escaped + "`";
+      }
+
+      function normalizeModelName(raw) {
+        let out = "";
+        let capNext = true;
+        for (const ch of raw) {
+          if (!/[\p{L}\p{N}]/u.test(ch)) {
+            capNext = true;
+            continue;
+          }
+          out += capNext ? ch.toUpperCase() : ch;
+          capNext = false;
+        }
+        if (!out) return "Model";
+        if (/^\d/.test(out)) return "Model" + out;
+        if (TYPESPEC_KEYWORDS.has(out)) return out + "Model";
+        return out;
+      }
+
+      function singularizeModelName(name) {
+        const normalized = normalizeModelName(name);
+        const lower = normalized.toLowerCase();
+        if (normalized.length > 3 && lower.endsWith("ies")) {
+          return normalized.slice(0, -3) + "y";
+        }
+        if (normalized.length > 4 && (lower.endsWith("ches") || lower.endsWith("shes"))) {
+          return normalized.slice(0, -2);
+        }
+        if (normalized.length > 3 && (lower.endsWith("ses") || lower.endsWith("xes") || lower.endsWith("zes"))) {
+          return normalized.slice(0, -2);
+        }
+        if (
+          normalized.length > 1 &&
+          lower.endsWith("s") &&
+          !lower.endsWith("ss") &&
+          !lower.endsWith("us") &&
+          !lower.endsWith("is")
+        ) {
+          return normalized.slice(0, -1);
+        }
+        return normalized + "Item";
+      }
+
+      function computeTypeSignature(node) {
+        switch (node.kind) {
+          case "array":
+            return "[" + computeTypeSignature(node.element) + "]";
+          case "union":
+            return "(" + node.members.map(computeTypeSignature).join("|") + ")";
+          case "object":
+            return computeObjectSignature(node.fields);
+          default:
+            return node.kind;
+        }
+      }
+
+      function computeObjectSignature(fields) {
+        return "{" + fields.map((f) => `${f.name}${f.optional ? "?" : ""}:${computeTypeSignature(f.type)}`).join(";") + "}";
+      }
+
+      function renderTypeSpecDocument(root, options) {
+        const rootName = normalizeModelName((options.rootName || "").trim() || "Root");
+        const inline = Boolean(options.inline);
+        const models = [];
+        const signatures = new Map();
+
+        function formatModelDeclaration(name, fields) {
+          if (fields.length === 0) {
+            return `model ${name} {}`;
+          }
+          const lines = [`model ${name} {`];
+          for (const field of fields) {
+            const prop = formatTypeSpecProperty(field.name);
+            const opt = field.optional ? "?" : "";
+            const hint = normalizeModelName(field.name);
+            const expr = renderTypeExpr(field.type, hint, name, 1);
+            lines.push(`  ${prop}${opt}: ${expr};`);
+          }
+          lines.push("}");
+          return lines.join("\n");
+        }
+
+        function renderInlineObject(fields, nameHint, indent) {
+          if (fields.length === 0) {
+            return "{}";
+          }
+          const childIndent = "  ".repeat(indent + 1);
+          const closeIndent = "  ".repeat(indent);
+          const lines = ["{"];
+          for (const field of fields) {
+            const prop = formatTypeSpecProperty(field.name);
+            const opt = field.optional ? "?" : "";
+            const fieldHint = normalizeModelName(field.name);
+            const expr = renderTypeExpr(field.type, fieldHint, nameHint, indent + 1);
+            lines.push(`${childIndent}${prop}${opt}: ${expr};`);
+          }
+          lines.push(`${closeIndent}}`);
+          return lines.join("\n");
+        }
+
+        function allocateUniqueModelName(base, sig) {
+          for (let suffix = 2; ; suffix += 1) {
+            const candidate = base + String(suffix);
+            if (!signatures.has(candidate) || signatures.get(candidate) === sig) {
+              return candidate;
+            }
+          }
+        }
+
+        function registerExtractedModel(fields, nameHint, parentName) {
+          const sig = computeObjectSignature(fields);
+          let candidate = normalizeModelName(nameHint);
+
+          if (signatures.has(candidate)) {
+            if (signatures.get(candidate) === sig) {
+              return candidate;
+            }
+            const prefixed = normalizeModelName(parentName) + candidate;
+            if (signatures.has(prefixed)) {
+              if (signatures.get(prefixed) === sig) {
+                return prefixed;
+              }
+              candidate = allocateUniqueModelName(prefixed, sig);
+              if (signatures.get(candidate) === sig) {
+                return candidate;
+              }
+            } else {
+              candidate = prefixed;
+            }
+          }
+
+          signatures.set(candidate, sig);
+          const slot = { name: candidate, body: "" };
+          models.push(slot);
+          slot.body = formatModelDeclaration(candidate, fields);
+          return candidate;
+        }
+
+        function renderTypeExpr(node, nameHint, parentName, indent) {
+          switch (node.kind) {
+            case "array": {
+              const elemHint = singularizeModelName(nameHint);
+              const elemExpr = renderTypeExpr(node.element, elemHint, parentName, indent);
+              return node.element.kind === "union" ? `(${elemExpr})[]` : `${elemExpr}[]`;
+            }
+            case "union":
+              return node.members.map((m) => renderTypeExpr(m, nameHint, parentName, indent)).join(" | ");
+            case "object":
+              if (inline) {
+                return renderInlineObject(node.fields, nameHint, indent);
+              }
+              return registerExtractedModel(node.fields, nameHint, parentName);
+            default:
+              return node.kind;
+          }
+        }
+
+        const sections = [];
+        if (root.kind === "object") {
+          signatures.set(rootName, computeObjectSignature(root.fields));
+          sections.push(formatModelDeclaration(rootName, root.fields));
+        } else {
+          const expr = renderTypeExpr(root, rootName, rootName, 0);
+          sections.push(`alias ${rootName} = ${expr};`);
+        }
+
+        for (const m of models) {
+          sections.push(m.body);
+        }
+
+        return sections.join("\n\n") + "\n";
+      }
+
+      // --- UI Wiring ---
+
+      const rootNameInput = document.getElementById("rootNameInput");
+      const inlineToggle = document.getElementById("inlineToggle");
+      const fileInput = document.getElementById("fileInput");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const inputPane = document.getElementById("inputPane");
+      const loadingBanner = document.getElementById("loadingBanner");
+      const jsonInput = document.getElementById("jsonInput");
+      const sampleBtn = document.getElementById("sampleBtn");
+      const formatBtn = document.getElementById("formatBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const errorBanner = document.getElementById("errorBanner");
+      const emptyState = document.getElementById("emptyState");
+      const tspOutput = document.getElementById("tspOutput");
+      const copyBtn = document.getElementById("copyBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+
+      let copyResetTimer = null;
+
+      function updateConversion() {
+        const raw = jsonInput.value;
+        if (raw.trim() === "") {
+          errorBanner.classList.add("hidden");
+          errorBanner.textContent = "";
+          tspOutput.value = "";
+          tspOutput.classList.add("hidden");
+          emptyState.classList.remove("hidden");
+          copyBtn.disabled = true;
+          downloadBtn.disabled = true;
+          return;
+        }
+
+        try {
+          const parsed = parseOrderedJSON(raw);
+          const inferred = inferTypeNode(parsed);
+          const output = renderTypeSpecDocument(inferred, {
+            rootName: rootNameInput.value,
+            inline: inlineToggle.checked
+          });
+
+          errorBanner.classList.add("hidden");
+          errorBanner.textContent = "";
+          emptyState.classList.add("hidden");
+          tspOutput.value = output;
+          tspOutput.classList.remove("hidden");
+          copyBtn.disabled = false;
+          downloadBtn.disabled = false;
+        } catch (err) {
+          errorBanner.textContent = err instanceof Error ? err.message : String(err);
+          errorBanner.classList.remove("hidden");
+          emptyState.classList.add("hidden");
+          tspOutput.value = "";
+          tspOutput.classList.add("hidden");
+          copyBtn.disabled = true;
+          downloadBtn.disabled = true;
+        }
+      }
+
+      function readUploadedFile(file) {
+        if (!file) return;
+        loadingBanner.classList.remove("hidden");
+        const reader = new FileReader();
+        reader.onload = () => {
+          loadingBanner.classList.add("hidden");
+          jsonInput.value = typeof reader.result === "string" ? reader.result : "";
+          updateConversion();
+        };
+        reader.onerror = () => {
+          loadingBanner.classList.add("hidden");
+          errorBanner.textContent = `读取文件失败: ${file.name}`;
+          errorBanner.classList.remove("hidden");
+        };
+        reader.readAsText(file);
+      }
+
+      jsonInput.addEventListener("input", updateConversion);
+      rootNameInput.addEventListener("input", updateConversion);
+      inlineToggle.addEventListener("change", updateConversion);
+
+      sampleBtn.addEventListener("click", () => {
+        jsonInput.value = SAMPLE_JSON;
+        if (!rootNameInput.value.trim() || rootNameInput.value === "Root") {
+          rootNameInput.value = "Order";
+        }
+        updateConversion();
+      });
+
+      formatBtn.addEventListener("click", () => {
+        const raw = jsonInput.value;
+        if (raw.trim() === "") return;
+        try {
+          const formatted = JSON.stringify(JSON.parse(raw), null, 2);
+          jsonInput.value = formatted;
+          updateConversion();
+        } catch (err) {
+          errorBanner.textContent = err instanceof Error ? err.message : String(err);
+          errorBanner.classList.remove("hidden");
+        }
+      });
+
+      clearBtn.addEventListener("click", () => {
+        jsonInput.value = "";
+        updateConversion();
+        jsonInput.focus();
+      });
+
+      uploadBtn.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files && fileInput.files[0];
+        readUploadedFile(file);
+        fileInput.value = "";
+      });
+
+      inputPane.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        inputPane.classList.add("drag-over");
+      });
+
+      inputPane.addEventListener("dragleave", () => {
+        inputPane.classList.remove("drag-over");
+      });
+
+      inputPane.addEventListener("drop", (event) => {
+        event.preventDefault();
+        inputPane.classList.remove("drag-over");
+        const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+        readUploadedFile(file);
+      });
+
+      copyBtn.addEventListener("click", async () => {
+        if (!tspOutput.value) return;
+        try {
+          await navigator.clipboard.writeText(tspOutput.value);
+          copyBtn.textContent = "已复制";
+          if (copyResetTimer) clearTimeout(copyResetTimer);
+          copyResetTimer = setTimeout(() => {
+            copyBtn.textContent = "复制";
+          }, 1500);
+        } catch {
+          tspOutput.select();
+          document.execCommand("copy");
+          copyBtn.textContent = "已复制";
+          if (copyResetTimer) clearTimeout(copyResetTimer);
+          copyResetTimer = setTimeout(() => {
+            copyBtn.textContent = "复制";
+          }, 1500);
+        }
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        if (!tspOutput.value) return;
+        const baseName = normalizeModelName(rootNameInput.value.trim() || "Root").toLowerCase();
+        const blob = new Blob([tspOutput.value], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${baseName}.tsp`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      updateConversion();
+    })();
+  </script>
+</body>
+</html>
